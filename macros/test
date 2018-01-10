@@ -1,6 +1,6 @@
 #! /bin/bash -ex
 
-mkdir -p target0 target1 target2
+mkdir -p target target1 target2
 scalac -d target -nowarn macro.scala
 scalac -cp target -d target1 -nowarn a.scala b.scala
 scalac -cp target -d target2 -nowarn b.scala a.scala
