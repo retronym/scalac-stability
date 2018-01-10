@@ -104,3 +104,127 @@ Macro fresh names for a given prefix are [globally numbered](https://github.com/
        LineNumberTable:
          line 5: 0
 ```
+
+### Partial Function fresh names
+
+When the typer adapts a `{ case ... => ; ...}` to `FunctionN` or `PartialFunction`, it creates fresh names for synthetic parameters. Out-of-order typechecking via type completion will change the numbering.
+
+In general, any fresh name allocated during typer has the same problem, such as:
+  - [during eta expansion](https://github.com/scala/scala/blob/9acab45aeeadef2f63da69faf81465cc15599789/src/compiler/scala/tools/nsc/typechecker/EtaExpansion.scala#L43-L46)
+  - [names/defaults](https://github.com/scala/scala/blob/d50519255369bc5cee413cd6b4bc39f9c3b60be5/src/compiler/scala/tools/nsc/typechecker/NamesDefaults.scala#L173) (also [in](https://github.com/scala/scala/blob/d50519255369bc5cee413cd6b4bc39f9c3b60be5/src/compiler/scala/tools/nsc/typechecker/NamesDefaults.scala#L303))
+  - converting `qual._=` to [an assignment](https://github.com/scala/scala/blob/9f0718f006a323459802804ac5aa3041c6f65e76/src/compiler/scala/tools/nsc/typechecker/Typers.scala#L4765-L4817), which creates a fresh name in [`evalOnceAll`](https://github.com/scala/scala/blob/16379739e9efa2e48eac09d046e591355fa9eb2d/src/compiler/scala/tools/nsc/ast/TreeGen.scala#L225) and `evalOnce`.
+  - [Naming a local val](https://github.com/scala/scala/blob/c9d84a187a7d2f8fa486ec4902c8de28d7658e76/src/compiler/scala/tools/nsc/typechecker/SyntheticMethods.scala#L180) in synthetic equals method
+  - Naming [GADT skolems](https://github.com/scala/scala/blob/5197256b44f34fa50ed468954d0bfb3bc469477d/src/compiler/scala/tools/nsc/typechecker/PatternTypers.scala#L192), which I believe can end up in inferred types of APIs stored in the pickle.
+
+[Test Case](partial-fun) (for the `PartialFunction` case only)
+
+
+```
+⚡ ./test
++ mkdir -p target1 target2
++ scalac -d target1 -nowarn -Xprint:all a.scala b.scala
++ egrep -v '\.scala'
++ scalac -d target2 -nowarn -Xprint:all b.scala a.scala
++ egrep -v '\.scala'
++ diff -u /dev/fd/63 /dev/fd/62
+++ show target1
+++ show target2
+++ egrep -v 'Classfile|checksum'
+++ egrep -v 'Classfile|checksum'
++++ find target1 -name '*anonfun*.class'
++++ find target2 -name '*anonfun*.class'
+++ javap -cp target2 -private -v 'target2/demo/a$$anonfun$x$1.class' 'target2/demo/a$$anonfun$y$1.class'
+++ javap -cp target1 -private -v 'target1/demo/a$$anonfun$x$1.class' 'target1/demo/a$$anonfun$y$1.class'
+--- /dev/fd/63  2018-01-10 13:50:20.000000000 +1000
++++ /dev/fd/62  2018-01-10 13:50:20.000000000 +1000
+@@ -23,7 +23,7 @@
+   #16 = Long               0l
+   #18 = Utf8               applyOrElse
+   #19 = Utf8               (Ljava/lang/Object;Lscala/Function1;)Ljava/lang/Object;
+-  #20 = Utf8               x1
++  #20 = Utf8               x2
+   #21 = Utf8               default
+   #22 = Utf8
+   #23 = String             #22            //
+@@ -97,7 +97,7 @@
+       LocalVariableTable:
+         Start  Length  Slot  Name   Signature
+             0      33     0  this   Ldemo/a$$anonfun$x$1;
+-            0      33     1    x1   Ljava/lang/Object;
++            0      33     1    x2   Ljava/lang/Object;
+             0      33     2 default   Lscala/Function1;
+       LineNumberTable:
+         line 5: 0
+@@ -113,7 +113,7 @@
+     Signature: #57                          // <A1:Ljava/lang/Object;B1:Ljava/lang/Object;>(TA1;Lscala/Function1<TA1;TB1;>;)TB1;
+     MethodParameters:
+       Name                           Flags
+-      x1                             final
++      x2                             final
+       default                        final
+
+   public final boolean isDefinedAt(java.lang.Object);
+@@ -138,7 +138,7 @@
+       LocalVariableTable:
+         Start  Length  Slot  Name   Signature
+             0      25     0  this   Ldemo/a$$anonfun$x$1;
+-            0      25     1    x1   Ljava/lang/Object;
++            0      25     1    x2   Ljava/lang/Object;
+       LineNumberTable:
+         line 5: 0
+       StackMapTable: number_of_entries = 3
+@@ -152,7 +152,7 @@
+           stack = []
+     MethodParameters:
+       Name                           Flags
+-      x1                             final
++      x2                             final
+
+   public demo.a$$anonfun$x$1(demo.a);
+     descriptor: (Ldemo/a;)V
+@@ -209,7 +209,7 @@
+   #16 = Long               0l
+   #18 = Utf8               applyOrElse
+   #19 = Utf8               (Ljava/lang/Object;Lscala/Function1;)Ljava/lang/Object;
+-  #20 = Utf8               x2
++  #20 = Utf8               x1
+   #21 = Utf8               default
+   #22 = Utf8
+   #23 = String             #22            //
+@@ -283,7 +283,7 @@
+       LocalVariableTable:
+         Start  Length  Slot  Name   Signature
+             0      33     0  this   Ldemo/a$$anonfun$y$1;
+-            0      33     1    x2   Ljava/lang/Object;
++            0      33     1    x1   Ljava/lang/Object;
+             0      33     2 default   Lscala/Function1;
+       LineNumberTable:
+         line 8: 0
+@@ -299,7 +299,7 @@
+     Signature: #57                          // <A1:Ljava/lang/Object;B1:Ljava/lang/Object;>(TA1;Lscala/Function1<TA1;TB1;>;)TB1;
+     MethodParameters:
+       Name                           Flags
+-      x2                             final
++      x1                             final
+       default                        final
+
+   public final boolean isDefinedAt(java.lang.Object);
+@@ -324,7 +324,7 @@
+       LocalVariableTable:
+         Start  Length  Slot  Name   Signature
+             0      25     0  this   Ldemo/a$$anonfun$y$1;
+-            0      25     1    x2   Ljava/lang/Object;
++            0      25     1    x1   Ljava/lang/Object;
+       LineNumberTable:
+         line 8: 0
+       StackMapTable: number_of_entries = 3
+@@ -338,7 +338,7 @@
+           stack = []
+     MethodParameters:
+       Name                           Flags
+-      x2                             final
++      x1                             final
+
+   public demo.a$$anonfun$y$1(demo.a);
+     descriptor: (Ldemo/a;)V
+```

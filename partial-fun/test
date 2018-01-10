@@ -1,0 +1,11 @@
+#! /bin/bash -ex
+
+mkdir -p target1 target2
+scalac -d target1 -nowarn -Xprint:all a.scala b.scala 2>&1 | egrep -v '\.scala' > target1/log
+scalac -d target2 -nowarn -Xprint:all b.scala a.scala 2>&1 | egrep -v '\.scala' > target2/log
+function show() {
+    javap -cp $1 -private -v $(find $1 -name '*anonfun*.class') | egrep -v 'Classfile|checksum'
+}
+# diff -U10000 target1/log target2/log
+diff -u <(show target1) <(show target2)
+
