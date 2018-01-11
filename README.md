@@ -228,3 +228,130 @@ In general, any fresh name allocated during typer has the same problem, such as:
    public demo.a$$anonfun$y$1(demo.a);
      descriptor: (Ldemo/a;)V
 ```
+
+### Quasiquote / Reify macros
+
+These macros use `currentFreshNameCreator`, which routes to `unit.fresh` in the compiler universe, and consequently
+shares the issues with typer fresh names being unstable in the face of out-of-order type checking.
+
+[Quasiquote Test case](macros-quasiquote)
+
+```
+⚡ ./test
++ mkdir -p target1 target2
++ scalac -d target1 -nowarn a.scala b.scala
++ scalac -d target2 -nowarn b.scala a.scala
++ diff -u /dev/fd/63 /dev/fd/62
+++ show target1 demo.a
+++ show target2 demo.a
+++ javap -cp target1 -v demo.a
+++ javap -cp target2 -v demo.a
+++ egrep -v 'Classfile|checksum'
+++ egrep -v 'Classfile|checksum'
+--- /dev/fd/63  2018-01-11 12:56:06.000000000 +1000
++++ /dev/fd/62  2018-01-11 12:56:06.000000000 +1000
+@@ -16,15 +16,15 @@
+     #9 = Utf8               demo/a$$treecreator1$1
+    #10 = Class              #9            // demo/a$$treecreator1$1
+    #11 = Utf8               $treecreator1$1
+-   #12 = Utf8               demo/a$$treecreator2$1
+-   #13 = Class              #12           // demo/a$$treecreator2$1
+-   #14 = Utf8               $treecreator2$1
++   #12 = Utf8               demo/a$$treecreator1$2
++   #13 = Class              #12           // demo/a$$treecreator1$2
++   #14 = Utf8               $treecreator1$2
+    #15 = Utf8               demo/a$$typecreator2$1
+    #16 = Class              #15           // demo/a$$typecreator2$1
+    #17 = Utf8               $typecreator2$1
+-   #18 = Utf8               demo/a$$typecreator4$1
+-   #19 = Class              #18           // demo/a$$typecreator4$1
+-   #20 = Utf8               $typecreator4$1
++   #18 = Utf8               demo/a$$typecreator2$2
++   #19 = Class              #18           // demo/a$$typecreator2$2
++   #20 = Utf8               $typecreator2$2
+    #21 = Utf8               scala/reflect/api/Exprs$Expr
+    #22 = Class              #21           // scala/reflect/api/Exprs$Expr
+    #23 = Utf8               scala/reflect/api/Exprs
+@@ -70,11 +70,11 @@
+    #63 = Utf8               <init>
+    #64 = Utf8               (Ldemo/a;)V
+    #65 = NameAndType        #63:#64       // "<init>":(Ldemo/a;)V
+-   #66 = Methodref          #10.#65       // demo/a$$treecreator1$1."<init>":(Ldemo/a;)V
++   #66 = Methodref          #13.#65       // demo/a$$treecreator1$2."<init>":(Ldemo/a;)V
+    #67 = Utf8               ()Lscala/reflect/api/TypeTags$TypeTag$;
+    #68 = NameAndType        #38:#67       // TypeTag:()Lscala/reflect/api/TypeTags$TypeTag$;
+    #69 = Methodref          #55.#68       // scala/reflect/macros/Universe.TypeTag:()Lscala/reflect/api/TypeTags$TypeTag$;
+-   #70 = Methodref          #16.#65       // demo/a$$typecreator2$1."<init>":(Ldemo/a;)V
++   #70 = Methodref          #19.#65       // demo/a$$typecreator2$2."<init>":(Ldemo/a;)V
+    #71 = Utf8               apply
+    #72 = Utf8               (Lscala/reflect/api/Mirror;Lscala/reflect/api/TypeCreator;)Lscala/reflect/api/TypeTags$TypeTag;
+    #73 = NameAndType        #71:#72       // apply:(Lscala/reflect/api/Mirror;Lscala/reflect/api/TypeCreator;)Lscala/reflect/api/TypeTags$TypeTag;
+@@ -94,8 +94,8 @@
+    #87 = Utf8               Ldemo/a;
+    #88 = Utf8               Lscala/reflect/macros/blackbox/Context;
+    #89 = Utf8               y
+-   #90 = Methodref          #13.#65       // demo/a$$treecreator2$1."<init>":(Ldemo/a;)V
+-   #91 = Methodref          #19.#65       // demo/a$$typecreator4$1."<init>":(Ldemo/a;)V
++   #90 = Methodref          #10.#65       // demo/a$$treecreator1$1."<init>":(Ldemo/a;)V
++   #91 = Methodref          #16.#65       // demo/a$$typecreator2$1."<init>":(Ldemo/a;)V
+    #92 = Utf8               ()V
+    #93 = NameAndType        #63:#92       // "<init>":()V
+    #94 = Methodref          #4.#93        // java/lang/Object."<init>":()V
+@@ -124,17 +124,17 @@
+         17: aload_2
+         18: invokevirtual #62                 // Method scala/reflect/macros/Universe.Expr:()Lscala/reflect/api/Exprs$Expr$;
+         21: aload_3
+-        22: new           #10                 // class demo/a$$treecreator1$1
++        22: new           #13                 // class demo/a$$treecreator1$2
+         25: dup
+         26: aconst_null
+-        27: invokespecial #66                 // Method demo/a$$treecreator1$1."<init>":(Ldemo/a;)V
++        27: invokespecial #66                 // Method demo/a$$treecreator1$2."<init>":(Ldemo/a;)V
+         30: aload_2
+         31: invokevirtual #69                 // Method scala/reflect/macros/Universe.TypeTag:()Lscala/reflect/api/TypeTags$TypeTag$;
+         34: aload_3
+-        35: new           #16                 // class demo/a$$typecreator2$1
++        35: new           #19                 // class demo/a$$typecreator2$2
+         38: dup
+         39: aconst_null
+-        40: invokespecial #70                 // Method demo/a$$typecreator2$1."<init>":(Ldemo/a;)V
++        40: invokespecial #70                 // Method demo/a$$typecreator2$2."<init>":(Ldemo/a;)V
+         43: invokevirtual #74                 // Method scala/reflect/api/TypeTags$TypeTag$.apply:(Lscala/reflect/api/Mirror;Lscala/reflect/api/TypeCreator;)Lscala/reflect/api/TypeTags$TypeTag;
+         46: invokevirtual #77                 // Method scala/reflect/api/Exprs$Expr$.apply:(Lscala/reflect/api/Mirror;Lscala/reflect/api/TreeCreator;Lscala/reflect/api/TypeTags$WeakTypeTag;)Lscala/reflect/api/Exprs$Expr;
+         49: invokeinterface #81,  1           // InterfaceMethod scala/reflect/api/Exprs$Expr.tree:()Lscala/reflect/api/Trees$TreeApi;
+@@ -166,17 +166,17 @@
+         17: aload_2
+         18: invokevirtual #62                 // Method scala/reflect/macros/Universe.Expr:()Lscala/reflect/api/Exprs$Expr$;
+         21: aload_3
+-        22: new           #13                 // class demo/a$$treecreator2$1
++        22: new           #10                 // class demo/a$$treecreator1$1
+         25: dup
+         26: aconst_null
+-        27: invokespecial #90                 // Method demo/a$$treecreator2$1."<init>":(Ldemo/a;)V
++        27: invokespecial #90                 // Method demo/a$$treecreator1$1."<init>":(Ldemo/a;)V
+         30: aload_2
+         31: invokevirtual #69                 // Method scala/reflect/macros/Universe.TypeTag:()Lscala/reflect/api/TypeTags$TypeTag$;
+         34: aload_3
+-        35: new           #19                 // class demo/a$$typecreator4$1
++        35: new           #16                 // class demo/a$$typecreator2$1
+         38: dup
+         39: aconst_null
+-        40: invokespecial #91                 // Method demo/a$$typecreator4$1."<init>":(Ldemo/a;)V
++        40: invokespecial #91                 // Method demo/a$$typecreator2$1."<init>":(Ldemo/a;)V
+         43: invokevirtual #74                 // Method scala/reflect/api/TypeTags$TypeTag$.apply:(Lscala/reflect/api/Mirror;Lscala/reflect/api/TypeCreator;)Lscala/reflect/api/TypeTags$TypeTag;
+         46: invokevirtual #77                 // Method scala/reflect/api/Exprs$Expr$.apply:(Lscala/reflect/api/Mirror;Lscala/reflect/api/TreeCreator;Lscala/reflect/api/TypeTags$WeakTypeTag;)Lscala/reflect/api/Exprs$Expr;
+         49: invokeinterface #81,  1           // InterfaceMethod scala/reflect/api/Exprs$Expr.tree:()Lscala/reflect/api/Trees$TreeApi;
+@@ -211,9 +211,9 @@
+ SourceFile: "a.scala"
+ InnerClasses:
+      public final #11= #10; //$treecreator1$1=class demo/a$$treecreator1$1
+-     public final #14= #13; //$treecreator2$1=class demo/a$$treecreator2$1
++     public final #14= #13; //$treecreator1$2=class demo/a$$treecreator1$2
+      public final #17= #16; //$typecreator2$1=class demo/a$$typecreator2$1
+-     public final #20= #19; //$typecreator4$1=class demo/a$$typecreator4$1
++     public final #20= #19; //$typecreator2$2=class demo/a$$typecreator2$2
+      public #25= #22 of #24; //Expr=class scala/reflect/api/Exprs$Expr of class scala/reflect/api/Exprs
+      public #28= #27 of #24; //Expr$=class scala/reflect/api/Exprs$Expr$ of class scala/reflect/api/Exprs
+      public #33= #30 of #32; //TreeApi=class scala/reflect/api/Trees$TreeApi of class scala/reflect/api/Trees
+
+```
