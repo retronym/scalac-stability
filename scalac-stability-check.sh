@@ -50,14 +50,13 @@ for ((i=${#allsources[@]}-1; i>=0; i--)); do
   echo "${allsources[$i]}" >> $sourcesfile
 done
 
-
 echo "Recompiling with sources in reverse order"
 "$SCALAC" -J-Xmx1G @$recompileargsfile -d $recompileout @$sourcesfile
-jardiff -r $refout $recompileout
+jardiff -r $refout $recompileout  | head -n 1000
 
 for ((i=${#allsources[@]}-1; i>=0; i--)); do
   file="${allsources[i]}"
   echo "Individually compiling $file"
-  "$SCALAC" @$recompileargsfile -cp $recompileout:${classpath:-dummy} -d $recompileout $file
-  jardiff -r $refout $recompileout
+  "$SCALAC" -nobootcp -Dscala.usejavacp=false @$recompileargsfile -cp $recompileout:${classpath:-dummy} -d $recompileout $file
+  jardiff -r $refout $recompileout | head -n 1000
 done
